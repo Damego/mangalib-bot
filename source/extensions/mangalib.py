@@ -33,7 +33,7 @@ class MangaLib(Extension):
                 required=True,
             )
         ],
-        scope=829333896561819648,
+        scope=[829333896561819648, 822119465575383102],
     )
     async def main_command(self, ctx: CommandContext, name: str):
         await ctx.defer()
@@ -46,12 +46,15 @@ class MangaLib(Extension):
             EmbedField(name=k, value=v, inline=True)
             for k, v in manga_data["manga_info"].items()
         ]
-        fields.append(
-            EmbedField(name="Последняя глава", value=manga_data["last_chapter"]["name"])
-        )
+        fields.extend([
+            EmbedField(name="Жанры", value=", ".join(manga_data["genres"])),
+            EmbedField(name="Оценка", value=manga_data["score_info"]["score"]),
+            EmbedField(name="Последняя глава", value=manga_data["last_chapter"]["name"]),
+        ])
 
         embed = Embed(
             title=manga_data["name"],
+            description=manga_data["description"],
             fields=fields,
             color=DiscordColors.BLURPLE,
         )
@@ -73,7 +76,7 @@ class MangaLib(Extension):
         )
 
         message = await ctx.send(embeds=embed, components=[components])
-
+        return
         try:
             button_ctx: ComponentContext = await self.bot.wait_for_component(
                 components=components, timeout=60
