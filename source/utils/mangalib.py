@@ -44,13 +44,28 @@ def load_manga_data(driver: webdriver.Chrome, name: str):
     data = {
         "name": full_name,
         "description": description,
-        "image_base64": image_file,
+        "image_base64": image_file, # ? Может стоит сохранять файл?
         "info": data,
         "genres": genres,
+        "url": url,
         "score_info": {
             "score": score,
             "count": count
         },
         "last_chapter": {"name": last_chapter_name, "url": last_chapter_url},
+    }
+    return data
+
+def check_new_chapter(driver: webdriver.Chrome, url: str):
+    driver.get(url)
+    chapter_data = driver.find_element(
+        By.CLASS_NAME, "media-chapter__name"
+    ).find_element(By.CLASS_NAME, "link-default")
+    chapter_name = chapter_data.text
+    chapter_url = chapter_data.get_attribute("href")
+
+    data = {
+        "name": chapter_name,
+        "url": chapter_url
     }
     return data
