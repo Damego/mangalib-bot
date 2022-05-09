@@ -1,4 +1,8 @@
 import asyncio
+from base64 import b64decode
+import re
+import io
+
 from interactions import (
     Extension,
     extension_command,
@@ -11,6 +15,7 @@ from interactions import (
     ButtonStyle,
     ActionRow,
     ComponentContext,
+    File
 )
 
 from utils.client import MangaLibClient
@@ -36,7 +41,7 @@ class MangaLib(Extension):
         scope=[829333896561819648, 822119465575383102],
     )
     async def main_command(self, ctx: CommandContext, name: str):
-        await ctx.defer()
+        await ctx.send("Загрузка, подождите...", ephemeral=True)
 
         manga_data: dict = load_manga_data(self.bot.webdriver, name)
         if manga_data is None:
@@ -44,7 +49,7 @@ class MangaLib(Extension):
 
         fields = [
             EmbedField(name=k, value=v, inline=True)
-            for k, v in manga_data["manga_info"].items()
+            for k, v in manga_data["info"].items()
         ]
         fields.extend([
             EmbedField(name="Жанры", value=", ".join(manga_data["genres"])),
@@ -52,13 +57,15 @@ class MangaLib(Extension):
             EmbedField(name="Последняя глава", value=manga_data["last_chapter"]["name"]),
         ])
 
+        image = io.BytesIO(b64decode(re.sub("data:image/jpeg;base64", '', manga_data["image_base64"])))
+        file = File("aboba.jpg", image)
         embed = Embed(
             title=manga_data["name"],
             description=manga_data["description"],
             fields=fields,
             color=DiscordColors.BLURPLE,
         )
-        embed.set_image(url=manga_data["image_url"])
+        embed.set_thumbnail(url="attachment://aboba.jpg")
         # TODO Проверить, есть ли манга в json, если да, то кнопка `отписаться`
         components = ActionRow(
             components=[
@@ -74,8 +81,9 @@ class MangaLib(Extension):
                 ),
             ]
         )
+        channel = await ctx.get_channel()
+        await channel.send(embeds=embed, components=[components], files=file)
 
-        message = await ctx.send(embeds=embed, components=[components])
         return
         try:
             button_ctx: ComponentContext = await self.bot.wait_for_component(
@@ -101,7 +109,7 @@ class MangaLib(Extension):
             return
 
         # TODO Записать в json новую мангу
-        await button_ctx.send("Вы успешно подписались на уведомления!", ephemeral=True)
+        await button_ctx.send("ok", ephemeral=True)
 
 
 def setup(client):
