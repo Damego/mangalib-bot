@@ -17,12 +17,14 @@ from interactions import (
     File,
     extension_component,
     extension_listener,
-    Channel
+    Channel,
+    Permissions,
+    ActionRow,
 )
 from interactions.ext.tasks import create_task, IntervalTrigger
 
 from utils.client import MangaLibClient
-from utils.mangalib import load_manga_data, check_new_chapter
+from utils.mangalib import load_manga_data, check_new_chapter, base64_from_url
 from utils.enums import DiscordColors
 
 
@@ -40,28 +42,34 @@ class MangaLib(Extension):
     async def on_ready(self):
         self.check_new_chapters.start(self)
 
-    @create_task(IntervalTrigger(10))
+    @create_task(IntervalTrigger(3600))
     async def check_new_chapters(self):
         if self.channel is None:
             await self.get_channel()
         for manga_data in self.task_list:
-            chapter_data = check_new_chapter(self.client.webdriver, f'{manga_data["url"]}?section=chapters')
+            chapter_data = check_new_chapter(
+                self.client.webdriver, f'{manga_data["url"]}?section=chapters'
+            )
             if manga_data["last_chapter"]["name"] != chapter_data["name"]:
                 manga_data["last_chapter"] = chapter_data
                 await self.send_message(manga_data)
                 self._write_json()
 
-    async def send_message(self, manga_data):
-        file = self._decode_base64(manga_data["image_base64"])
+    async def send_message(self, manga_data: dict):
+        file = self._decode_base64(
+            base64_from_url(self.client.webdriver, manga_data["image_url"])
+        )
         embed = Embed(
             title=manga_data["name"],
             description=f'**{manga_data["last_chapter"]["name"]}**',
-            color=DiscordColors.BLURPLE
+            color=DiscordColors.BLURPLE,
         )
         embed.set_author("Новая глава!")
         embed.set_thumbnail("attachment://manga.jpg")
         component = Button(
-            style=ButtonStyle.LINK, label="Читать", url=manga_data["last_chapter"]["url"]
+            style=ButtonStyle.LINK,
+            label="Читать",
+            url=manga_data["last_chapter"]["url"],
         )
         await self.channel.send(embeds=embed, components=component, files=file)
 
@@ -108,12 +116,18 @@ class MangaLib(Extension):
             EmbedField(name=k, value=v, inline=True)
             for k, v in manga_data["info"].items()
         ]
-        fields.extend([
-            EmbedField(name="Жанры", value=", ".join(manga_data["genres"])),
-            EmbedField(name="Оценка", value=manga_data["score_info"]["score"]),
-            EmbedField(name="Последняя глава", value=manga_data["last_chapter"]["name"]),
-        ])
-        file = self._decode_base64(manga_data["image_base64"])
+        fields.extend(
+            [
+                EmbedField(name="Жанры", value=", ".join(manga_data["genres"])),
+                EmbedField(name="Оценка", value=manga_data["score_info"]["score"]),
+                EmbedField(
+                    name="Последняя глава", value=manga_data["last_chapter"]["name"]
+                ),
+            ]
+        )
+        file = self._decode_base64(
+            base64_from_url(self.client.webdriver, manga_data["image_url"])
+        )
         embed = Embed(
             title=manga_data["name"],
             description=manga_data["description"],
@@ -122,12 +136,11 @@ class MangaLib(Extension):
         )
         embed.set_thumbnail(url="attachment://manga.jpg")
         components = [
-            # TODO: Спарсить ссылку на первую главу и добавить кнопку
-            #Button(
-            #    style=ButtonStyle.LINK,
-            #    label="начать читать",
-            #    url=manga_data["fist_chapter_url"],
-            #),
+            Button(
+                style=ButtonStyle.LINK,
+                label="Начать читать",
+                url=manga_data["first_chapter_url"],
+            ),
             Button(
                 style=ButtonStyle.LINK,
                 label="Читать последнюю главу",
@@ -137,12 +150,14 @@ class MangaLib(Extension):
                 style=ButtonStyle.SECONDARY,
                 label="Подписаться",
                 custom_id="subscribe",
-            )
+            ),
         ]
         for manga in self.task_list:
             if manga["name"] == manga_data["name"]:
                 components[-1] = Button(
-                    style=ButtonStyle.DANGER, label="Отписаться", custom_id="unsubscribe"
+                    style=ButtonStyle.DANGER,
+                    label="Отписаться",
+                    custom_id="unsubscribe",
                 )
         channel = await ctx.get_channel()
         await channel.send(embeds=embed, components=[components], files=file)
@@ -151,6 +166,10 @@ class MangaLib(Extension):
 
     @extension_component("subscribe")
     async def mangalib_subscribe(self, ctx: ComponentContext):
+        has_perms = await self._check_perms(ctx)
+        if not has_perms:
+            return
+
         origin_request = ctx.message.embeds[0].title
         for manga_data in self.wait_list:
             if origin_request == manga_data["name"]:
@@ -158,24 +177,77 @@ class MangaLib(Extension):
                 break
         else:
             return await ctx.send("oops", ephemeral=True)
-        await ctx.send(f"Вы подписались на рассылку {manga_data['name']}!")
-        await ctx.message.edit(components=[])
+        components = self._components_from_json(ctx.message.components)
+        components[0].components[-1].disabled = True
+        message = ctx.message
+        print(message)
+        await ctx.send(f"Вы подписались на рассылку `{manga_data['name']}`!")
+        await message.edit(components=components, files=[])
 
-    # TODO: Отписка от рассылки
+    @extension_component("unsubscribe")
+    async def mangalib_unsubscribe(self, ctx: ComponentContext):
+        has_perms = await self._check_perms(ctx)
+        if not has_perms:
+            return
+
+        origin_request = ctx.message.embeds[0].title
+        for manga_data in self.wait_list:
+            if origin_request == manga_data["name"]:
+                self.remove_manga_from_task(manga_data)
+                break
+        else:
+            return await ctx.send("oops", ephemeral=True)
+        components = self._components_from_json(ctx.message.components)
+        components[0].components[-1].disabled = True
+        message = ctx.message
+        print(message)
+        await ctx.send(f"Вы отписались от рассылки на `{manga_data['name']}`!")
+        await message.edit(components=components, files=[])
 
     def add_manga_to_task(self, manga_data: dict):
         self.task_list.append(manga_data)
         self.wait_list.remove(manga_data)
         self._write_json()
-        
+
+    def remove_manga_from_task(self, manga_data: dict):
+        self.task_list.remove(manga_data)
+        self.wait_list.remove(manga_data)
+        self._write_json()
+
     def _decode_base64(self, base64: str):
-        image = io.BytesIO(b64decode(re.sub("data:image/jpeg;base64", '', base64)))
+        image = io.BytesIO(b64decode(re.sub("data:image/jpeg;base64", "", base64)))
         file = File("manga.jpg", image)
         return file
 
     def _write_json(self):
         with open("manga_data.json", "w", encoding="utf-8") as file:
             json.dump(self.task_list, file, ensure_ascii=False)
+
+    async def _check_perms(self, ctx: ComponentContext):
+        if (
+            ctx.author.permissions & Permissions.ADMINISTRATOR.value
+            == Permissions.ADMINISTRATOR.value
+        ):
+            return True
+        else:
+            await ctx.send(
+                "Только Администратор может нажимать на кнопку!", ephemeral=True
+            )
+            return
+
+    def _components_from_json(self, components_json: dict):
+        components = [
+            ActionRow(
+                components=[
+                    Button(**component_json)
+                    for component_json in components_json[0]["components"]
+                ]
+            )
+        ]
+        return components
+        for action_row_json in components:
+            for component_json in components:
+                component = Button(**component_json)
 
 
 def setup(client):

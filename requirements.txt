@@ -1,0 +1,4 @@
+discord-py-interactions
+interactions-tasks
+selenium
+webdriver_manager
