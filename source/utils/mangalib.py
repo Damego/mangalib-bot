@@ -7,9 +7,9 @@ def load_manga_data(driver: webdriver.Chrome, name: str):
 
     # Getting url of manga
     driver.get(url=search_url)
-    url = driver.find_element(By.CLASS_NAME, "media-card").get_attribute("href")
-    if url is None:
-        print("ХАНА МАШИНЕ")
+    try:
+        url = driver.find_element(By.CLASS_NAME, "media-card").get_attribute("href")
+    except Exception:
         return
 
     # Getting data of manga
