@@ -180,7 +180,6 @@ class MangaLib(Extension):
         components = self._components_from_json(ctx.message.components)
         components[0].components[-1].disabled = True
         message = ctx.message
-        print(message)
         await ctx.send(f"Вы подписались на рассылку `{manga_data['name']}`!")
         await message.edit(components=components, files=[])
 
@@ -200,7 +199,6 @@ class MangaLib(Extension):
         components = self._components_from_json(ctx.message.components)
         components[0].components[-1].disabled = True
         message = ctx.message
-        print(message)
         await ctx.send(f"Вы отписались от рассылки на `{manga_data['name']}`!")
         await message.edit(components=components, files=[])
 
@@ -245,9 +243,6 @@ class MangaLib(Extension):
             )
         ]
         return components
-        for action_row_json in components:
-            for component_json in components:
-                component = Button(**component_json)
 
 
 def setup(client):
