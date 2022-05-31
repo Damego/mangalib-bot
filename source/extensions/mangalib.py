@@ -1,5 +1,6 @@
 from base64 import b64decode
 import re
+import asyncio
 import io
 import json
 
@@ -22,6 +23,7 @@ from interactions import (
     ActionRow,
 )
 from interactions.ext.tasks import create_task, IntervalTrigger
+from selenium.common.exceptions import NoSuchElementException
 
 from utils.client import MangaLibClient
 from utils.mangalib import load_manga_data, check_new_chapter, base64_from_url
@@ -40,6 +42,7 @@ class MangaLib(Extension):
 
     @extension_listener
     async def on_ready(self):
+        await asyncio.sleep(5)
         self.check_new_chapters.start(self)
 
     @create_task(IntervalTrigger(3600))
@@ -47,9 +50,13 @@ class MangaLib(Extension):
         if self.channel is None:
             await self.get_channel()
         for manga_data in self.task_list:
-            chapter_data = check_new_chapter(
-                self.client.webdriver, f'{manga_data["url"]}?section=chapters'
-            )
+            try:
+                chapter_data = check_new_chapter(
+                    self.client.webdriver, f'{manga_data["url"]}?section=chapters'
+                )
+            except NoSuchElementException as exc:
+                print(f"Ошибка с парсингом {manga_data['name']}\n{exc}")
+                continue
             if manga_data["last_chapter"]["name"] != chapter_data["name"]:
                 manga_data["last_chapter"] = chapter_data
                 await self.send_message(manga_data)
