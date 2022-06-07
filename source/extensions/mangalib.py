@@ -70,7 +70,7 @@ class MangaLib(Extension):
         embed = Embed(
             title=manga_data["name"],
             description=f'**{manga_data["last_chapter"]["name"]}**',
-            color=Color.blurple,
+            color=Color().blurple,
         )
         embed.set_author("Новая глава!")
         embed.set_thumbnail("attachment://manga.jpg")
@@ -140,7 +140,7 @@ class MangaLib(Extension):
             title=manga_data["name"],
             description=manga_data["description"],
             fields=fields,
-            color=Color.blurple,
+            color=Color().blurple,
         )
         embed.set_thumbnail(url="attachment://manga.jpg")
         components = [

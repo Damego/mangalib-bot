@@ -131,6 +131,5 @@ dmypy.json
 # python cache files
 *.pyc
 
-manga_data.json
 avatar.jpg
 test.py
