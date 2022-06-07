@@ -21,13 +21,14 @@ from interactions import (
     Channel,
     Permissions,
     ActionRow,
+    Color
 )
 from interactions.ext.tasks import create_task, IntervalTrigger
 from selenium.common.exceptions import NoSuchElementException
 
 from utils.client import MangaLibClient
 from utils.mangalib import load_manga_data, check_new_chapter, base64_from_url
-from utils.enums import DiscordColors
+from utils.enums import IDS
 
 
 class MangaLib(Extension):
@@ -51,8 +52,8 @@ class MangaLib(Extension):
             await self.get_channel()
         for manga_data in self.task_list:
             try:
-                chapter_data = check_new_chapter(
-                    self.client.webdriver, f'{manga_data["url"]}?section=chapters'
+                _, chapter_data = check_new_chapter(
+                    self.client.webdriver, manga_data["url"]
                 )
             except NoSuchElementException as exc:
                 print(f"Ошибка с парсингом {manga_data['name']}\n{exc}")
@@ -69,7 +70,7 @@ class MangaLib(Extension):
         embed = Embed(
             title=manga_data["name"],
             description=f'**{manga_data["last_chapter"]["name"]}**',
-            color=DiscordColors.BLURPLE,
+            color=Color.blurple,
         )
         embed.set_author("Новая глава!")
         embed.set_thumbnail("attachment://manga.jpg")
@@ -82,18 +83,18 @@ class MangaLib(Extension):
 
     async def get_channel(self):
         for guild in self.client.guilds:
-            if int(guild.id) == 822119465575383102:
+            if int(guild.id) == IDS.GUILD_ID:
                 break
         for channel in guild.channels:
             if isinstance(channel, dict):
                 channel = Channel(**channel, _client=self.client._http)
-            if int(channel.id) == 969464310294278214:
+            if int(channel.id) == IDS.CHANNEL_ID:
                 self.channel = channel
                 break
         else:
             channels = await guild.get_all_channels()
             for channel in channels:
-                if int(channel.id) == 969464310294278214:
+                if int(channel.id) == IDS.CHANNEL_ID:
                     self.channel = channel
                     break
             else:
@@ -139,7 +140,7 @@ class MangaLib(Extension):
             title=manga_data["name"],
             description=manga_data["description"],
             fields=fields,
-            color=DiscordColors.BLURPLE,
+            color=Color.blurple,
         )
         embed.set_thumbnail(url="attachment://manga.jpg")
         components = [

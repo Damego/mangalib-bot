@@ -1,5 +1,14 @@
+import datetime
+from typing import List, Dict
+
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
+
+
+time_format = "%d.%m.%Y"
+xpath = '//*[@id="main-page"]/div/div/div/div[2]/div[2]/div[3]/div/div[1]/div[1]/div[2]/div[{i}]'
 
 
 def load_manga_data(driver: webdriver.Chrome, name: str):
@@ -9,39 +18,26 @@ def load_manga_data(driver: webdriver.Chrome, name: str):
     driver.get(url=search_url)
     try:
         url = driver.find_element(By.CLASS_NAME, "media-card").get_attribute("href")
-    except Exception:
+    except NoSuchElementException:
         return
+    driver.get(url=url)
 
     # Getting data of manga
-    driver.get(url=f"{url}?section=chapters")
-
     score_data = driver.find_element(
         By.CLASS_NAME, "media-rating-wrap"
     ).text.splitlines()
     score, count = score_data[0], score_data[1]
-
     data_raw = driver.find_element(By.CLASS_NAME, "media-info-list").text.splitlines()
     data = {data_raw[i]: data_raw[i + 1] for i in range(0, len(data_raw) - 1, 2)}
-
     image_card = driver.find_element(By.CLASS_NAME, "media-sidebar__cover")
     image_url = image_card.find_element(By.XPATH, "img").get_attribute("src")
-    print(image_url)
-
     full_name = driver.find_element(By.CLASS_NAME, "media-name__main").text
-
     first_chapter_url = (
         driver.find_element(By.CLASS_NAME, "media-sidebar__buttons")
         .find_element(By.XPATH, "a")
         .get_attribute("href")
     )
-    last_chapter_data = driver.find_element(
-        By.CLASS_NAME, "media-chapter__name"
-    ).find_element(By.CLASS_NAME, "link-default")
-    last_chapter_name = last_chapter_data.text
-    last_chapter_url = last_chapter_data.get_attribute("href")
-
     driver.get(url=f"{url}?section=info")
-
     description = driver.find_element(By.CLASS_NAME, "media-description__text").text
     genres = driver.find_element(By.CLASS_NAME, "media-tags").text.splitlines()
 
@@ -59,7 +55,7 @@ def load_manga_data(driver: webdriver.Chrome, name: str):
         "url": url,
         "score_info": {"score": score, "count": count},
         "first_chapter_url": first_chapter_url,
-        "last_chapter": {"name": last_chapter_name, "url": last_chapter_url},
+        "last_chapter": last_chapter_data,
     }
 
 def _parse_last_chapter(driver: webdriver.Chrome, url: str = None):
@@ -103,15 +99,10 @@ def get_all_chapter_data(driver: webdriver.Chrome):
 
 
 def check_new_chapter(driver: webdriver.Chrome, url: str):
+    if "section=chapters" not in url:
+        url += "?section=chapters"
     driver.get(url)
-    chapter_data = driver.find_element(
-        By.CLASS_NAME, "media-chapter__name"
-    ).find_element(By.CLASS_NAME, "link-default")
-    chapter_name = chapter_data.text
-    chapter_url = chapter_data.get_attribute("href")
-
-    data = {"name": chapter_name, "url": chapter_url}
-    return data
+    return _parse_last_chapter(driver)
 
 
 def base64_from_url(driver: webdriver.Chrome, url: str):
