@@ -63,7 +63,6 @@ def _parse_last_chapter(driver: webdriver.Chrome, url: str = None):
         chapter_data = driver.find_element(
             By.CLASS_NAME, "media-chapter"
         )
-        print(chapter_data.text)
         chapter_data = chapter_data.find_element(By.CLASS_NAME, "link-default")
         chapter_name = chapter_data.text.splitlines()[0]
         chapter_url = chapter_data.get_attribute("href")
