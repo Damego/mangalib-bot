@@ -1,0 +1,8 @@
+git+https://github.com/interactions-py/library.git@unstable
+interactions-tasks
+selenium
+webdriver_manager
+attrs
+pymongo
+motor
+python-dotenv
