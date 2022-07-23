@@ -4,10 +4,6 @@ from dotenv import load_dotenv
 
 from utils.client import MangaLibClient
 
-# import logging
-#
-# logging.basicConfig(level=logging.DEBUG)
-
 
 load_dotenv()
 
