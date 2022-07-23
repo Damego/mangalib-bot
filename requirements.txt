@@ -5,3 +5,4 @@ webdriver_manager
 attrs
 pymongo
 motor
+python-dotenv
