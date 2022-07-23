@@ -119,7 +119,7 @@ class MangaLib(Extension):
         return channel
 
     @extension_command(name="mangalib", description="Show information about manga")
-    @option(str, name="name", description="The name of manga", required=True)  # type: ignore
+    @option(option_type=OptionType.STRING, name="name", description="The name of manga", required=True)  # type: ignore
     async def main_command(self, ctx: CommandContext, name: str):
         await ctx.send("Загрузка, подождите...", ephemeral=True)
         while self.parser.is_busy:
@@ -289,7 +289,7 @@ class MangaLib(Extension):
 
     @extension_command(name="set-channel", description="Set channel for notifications")
     @option(
-        OptionType.CHANNEL,
+        option_type=OptionType.CHANNEL,
         name="channel",
         description="The channel for notifications",
         channel_types=[ChannelType.GUILD_TEXT],
