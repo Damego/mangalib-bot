@@ -41,12 +41,9 @@ class MangaLib(Extension):
         self.parser = self.client.parser
         self.guilds: list[GuildData] = []
         self.wait_list: dict[int, list[MangaData]] = {}
-        self.is_ready = False
 
     @extension_listener
-    async def on_ready(self):
-        if self.is_ready:
-            return
+    async def start(self):
         await asyncio.sleep(5)
 
         if not self.guilds:
@@ -55,7 +52,6 @@ class MangaLib(Extension):
             self.wait_list[int(guild.id)] = []
 
         self.task_check_new_chapters.start(self)
-        self.is_ready = True
 
     @extension_listener
     async def on_guild_create(self, guild: Guild):
@@ -123,7 +119,7 @@ class MangaLib(Extension):
     async def main_command(self, ctx: CommandContext, name: str):
         await ctx.send("Загрузка, подождите...", ephemeral=True)
         while self.parser.is_busy:
-            pass
+            await asyncio.sleep(1)
 
         try:
             manga_data: MangaData = self.parser.parse_manga_data(name)
@@ -195,7 +191,7 @@ class MangaLib(Extension):
             await ctx.send("Каким-то образом не найдено", ephemeral=True)
             return None, None, None
 
-        components = self._components_from_json(ctx.message.components)  # type: ignore
+        components = ctx.message.components
         components[0].components[-1].disabled = True
         message = ctx.message
 
@@ -275,17 +271,6 @@ class MangaLib(Extension):
             ctx.author.permissions & Permissions.ADMINISTRATOR.value
             == Permissions.ADMINISTRATOR.value
         )
-
-    def _components_from_json(self, components_json: dict) -> list[ActionRow]:
-        return [
-            ActionRow(
-                components=[
-                    Component(**component_json)
-                    for component_json in action_row["components"]
-                ]
-            )
-            for action_row in components_json
-        ]
 
     @extension_command(name="set-channel", description="Set channel for notifications")
     @option(

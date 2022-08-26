@@ -1,4 +1,4 @@
-git+https://github.com/interactions-py/library.git@unstable
+discord-py-interactions==4.3.0
 interactions-tasks
 selenium
 webdriver_manager
